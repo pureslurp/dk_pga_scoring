@@ -2,10 +2,14 @@ from curses import raw
 import selenium
 from selenium.webdriver.support.select import Select
 from selenium.webdriver.common.by import By
+from selenium.webdriver.firefox.options import Options
 from selenium import webdriver
 import time
 import pandas as pd
 import numpy as np
+import os
+
+options = Options()
 
 def per_hole_scoring(score):
     '''
@@ -212,10 +216,77 @@ def round_scores(driver, select2, round):
     select2.select_by_visible_text(round)
     scores = driver.page_source
     scores_pd = pd.read_html(scores)
-    df_scores = scores_pd[1]
+    df_scores = scores_pd[-1]
     df_scores = df_scores.drop(['Hole', 'Out', 'In', 'Tot'], axis=1)
 
     return df_scores
+
+
+
+
+def tournament_id(url):
+    url = url.split('/')
+    id = url[-1]
+    return(id)
+
+def dk_points_df(url):
+    driver = webdriver.Firefox(service_log_path=os.path.devnull, options=options)
+
+    raw_data = pd.read_html(url)
+    raw_data = raw_data[-1]
+    t_id = tournament_id(url)
+
+    raw_data['POS'] = raw_data['POS'].apply(lambda x: pos_rewrite(x))
+    raw_data = raw_data.drop(['EARNINGS', 'FEDEX PTS'], axis=1)
+    par = find_par(raw_data)
+    driver.get(url)
+    df_total_points = pd.DataFrame(columns=["Name", "DK Score"])
+
+    for index, row in raw_data.iterrows():
+        print(df_total_points.head())
+        player = row['PLAYER']
+        pos = row["POS"]
+        print(pos)
+
+        # get element 
+        element = driver.find_element(By.XPATH, f'// a[contains(text(), "{player}")]')
+
+        # click the element
+        element.click()
+        driver.implicitly_wait(120)
+        time.sleep(2)
+        
+        if pos < 100:
+            select = driver.find_element(By.CLASS_NAME, 'Leaderboard__Player__Detail')
+            select2 = Select(select.find_element(By.CLASS_NAME, 'dropdown__select'))
+            r1 = round_scores(driver, select2, "Round 1")
+            r2 = round_scores(driver, select2, "Round 2")
+            r3 = round_scores(driver, select2, "Round 3")
+            r4 = round_scores(driver, select2, "Round 4")
+            row = {"Name": row['PLAYER'], "DK Score" : round_dk_score(r1, r2, r3, r4, pos, par)}
+            df_total_points = df_total_points.append(row, ignore_index=True)
+        else:
+            try:
+                select = driver.find_element(By.CLASS_NAME, 'Leaderboard__Player__Detail')
+                select2 = Select(select.find_element(By.CLASS_NAME, 'dropdown__select'))
+                r1 = round_scores(driver, select2, "Round 1")
+                r2 = round_scores(driver, select2, "Round 2")
+                r3 = None
+                r4 = None
+                row = {"Name": row['PLAYER'], "DK Score" : round_dk_score(r1, r2, r3, r4, pos, par)}
+                df_total_points = df_total_points.append(row, ignore_index=True)
+            except:
+                print(f'Player {row["PLAYER"]} is N/A')
+                pass
+
+        
+        element.click()
+
+    
+    df_total_points.to_csv(f'past_results/2022/dk_points_id_{t_id}.csv', index=False)
+    driver.close()
+    driver.quit() 
+    return df_total_points
 
 
 #MAIN
@@ -224,56 +295,6 @@ def round_scores(driver, select2, round):
 url = "https://www.espn.com/golf/leaderboard?tournamentId=401353220"
 ##
 
-driver = webdriver.Firefox()
+dk_points_df(url)
 
-raw_data = pd.read_html(url)
-raw_data = raw_data[-1]
-
-raw_data['POS'] = raw_data['POS'].apply(lambda x: pos_rewrite(x))
-raw_data = raw_data.drop(['EARNINGS', 'FEDEX PTS'], axis=1)
-par = find_par(raw_data)
-driver.get(url)
-df_total_points = pd.DataFrame(columns=["Name", "DK Score"])
-
-for index, row in raw_data.iterrows():
-    print(df_total_points.head())
-    player = row['PLAYER']
-    pos = row["POS"]
-    print(pos)
-
-    # get element 
-    element = driver.find_element(By.XPATH, f'// a[contains(text(), "{player}")]')
-
-    # click the element
-    element.click()
-    driver.implicitly_wait(120)
-    time.sleep(2)
-    
-    try:
-        select = driver.find_element(By.CLASS_NAME, 'Leaderboard__Player__Detail')
-        select2 = Select(select.find_element(By.CLASS_NAME, 'dropdown__select'))
-        if pos < 100:
-            r1 = round_scores(driver, select2, "Round 1")
-            r2 = round_scores(driver, select2, "Round 2")
-            r3 = round_scores(driver, select2, "Round 3")
-            r4 = round_scores(driver, select2, "Round 4")
-        else:
-            r1 = round_scores(driver, select2, "Round 1")
-            r2 = round_scores(driver, select2, "Round 2")
-            r3 = None
-            r4 = None
-        row = {"Name": row['PLAYER'], "DK Score" : round_dk_score(r1, r2, r3, r4, pos, par)}
-    except:
-        row = {"Name": row['PLAYER'], "DK Score" : 0}
-
-
-    df_total_points = df_total_points.append(row, ignore_index=True)
-    #print(f'{row["PLAYER"]} dk score: {round_dk_score(r1, r2, r3, r4, pos, par)}')
-    
-    
-    element.click()
-
-df_total_points.to_csv('total_dk_points_test.csv', index=False)
-driver.close()
-driver.quit() 
 ##
