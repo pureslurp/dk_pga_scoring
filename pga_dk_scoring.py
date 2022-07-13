@@ -289,12 +289,27 @@ def dk_points_df(url):
     return df_total_points
 
 
-#MAIN
+def main():
+    #USER INPUT
+    url = "https://www.espn.com/golf/leaderboard?tournamentId=401353220"
+    ##
+    id = url.split('=')[1]
+    print(os.getcwd())
+    curr = os.getcwd()
+    data_exists = False
+    for file in os.listdir(f'{curr}/past_results/2022'):
+        file_id = file.split('.')[0]
+        file_id = file_id[-9:]
+        if id == file_id:
+            data_exists = True
+            break
+        else:
+            pass
+    if not data_exists:
+        dk_points_df(url)
+    else:
+        print("Tournament already parsed")
 
-#USER INPUT
-url = "https://www.espn.com/golf/leaderboard?tournamentId=401353220"
-##
 
-dk_points_df(url)
-
-##
+if __name__ == '__main__':
+    main()
