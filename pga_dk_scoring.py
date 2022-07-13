@@ -294,7 +294,6 @@ def main():
     url = "https://www.espn.com/golf/leaderboard?tournamentId=401353220"
     ##
     id = url.split('=')[1]
-    print(os.getcwd())
     curr = os.getcwd()
     data_exists = False
     for file in os.listdir(f'{curr}/past_results/2022'):
