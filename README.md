@@ -15,4 +15,3 @@ This is an initial script, updates will be made periodically based on feedback.
 # FAQ
 Feel free to reach out to me if you have any questions
 - Discord: PureSlurp #2832
-- Twitter: @pureslurp
